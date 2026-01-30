@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Patrick Case</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background-color: #1c1c1e; /* Темный фон как в видео */
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+        }
+
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .balance-box {
+            background: #2c2c2e;
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .star-icon {
+            color: #ffd700;
+            margin-right: 5px;
+        }
+
+        .case-container {
+            background: linear-gradient(180deg, #2a2a2e 0%, #1f1f21 100%);
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            width: 80%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 30px;
+            border: 1px solid #3a3a3c;
+        }
+
+        .case-image {
+            width: 150px;
+            height: 150px;
+            object-fit: contain;
+            /* Сюда вставим картинку Патрика */
+            background-image: url('https://cdn-icons-png.flaticon.com/512/6555/6555986.png'); 
+            background-size: cover;
+            margin: 0 auto 20px auto;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        h2 { margin: 0; font-size: 18px; margin-bottom: 10px; }
+        
+        .main-btn {
+            background: linear-gradient(90deg, #007aff, #0051a8);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 12px;
+            width: 100%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .main-btn:active {
+            transform: scale(0.95);
+        }
+
+        .prize-display {
+            font-size: 24px;
+            font-weight: bold;
+            color: #32d74b;
+            margin-top: 15px;
+            display: none; /* Скрыто по умолчанию */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div id="username">Игрок</div>
+        <div class="balance-box"><span class="star-icon">★</span> <span id="balance">0</span></div>
+    </div>
+
+    <div class="case-container">
+        <div class="case-image" id="caseImg"></div>
+        <h2>Бесплатный кейс</h2>
+        <p style="color: #8e8e93; font-size: 12px;">Выпадает от 1 до 25 звезд</p>
+    </div>
+
+    <div id="prizeResult" class="prize-display"></div>
+    <button class="main-btn" onclick="openCase()">ОТКРЫТЬ КЕЙС</button>
+
+    <script>
+        // Инициализация Telegram WebApp
+        let tg = window.Telegram.WebApp;
+        tg.expand(); // Раскрыть на весь экран
+
+        // Берем имя пользователя
+        if (tg.initDataUnsafe.user) {
+            document.getElementById('username').innerText = tg.initDataUnsafe.user.first_name;
+        }
+
+        let balance = 0;
+
+        function openCase() {
+            // Здесь будет анимация и логика
+            // Пока сделаем простой рандом
+            let win = [1, 2, 3, 5, 10, 25][Math.floor(Math.random() * 6)];
+            
+            balance += win;
+            document.getElementById('balance').innerText = balance;
+            
+            let resultText = document.getElementById('prizeResult');
+            resultText.innerText = `+${win} Звезд!`;
+            resultText.style.display = "block";
+            
+            // Вибрация телефона (Haptic Feedback) - это дает ощущение "игры"
+            tg.HapticFeedback.notificationOccurred('success');
+
+            // Отправляем данные боту (потом настроим)
+            // tg.sendData(JSON.stringify({win: win}));
+        }
+    </script>
+</body>
+</html>
