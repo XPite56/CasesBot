@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrigorovLive</title>
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@13.0.1"></script>
+    <style>
+        :root { 
+            --p: #9b59b6; /* Фиолетовый GL */
+            --p-dark: #8e44ad; 
+            --bg: #0f0f13; 
+            --card: #1c1c24; 
+            --text: #ffffff; 
+            --text-gray: #a0a0a0; 
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar */
+        .sidebar { width: 260px; background: var(--card); padding: 25px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid rgba(255,255,255,0.05); }
+        .logo { font-size: 22px; font-weight: 800; color: var(--p); margin-bottom: 30px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .nav-btn { background: transparent; border: none; color: var(--text-gray); text-align: left; padding: 12px 15px; border-radius: 12px; cursor: pointer; transition: 0.3s; font-size: 15px; width: 100%; }
+        .nav-btn:hover, .nav-btn.active { background: rgba(155, 89, 182, 0.15); color: var(--p); font-weight: 600; }
+        .btn-main { background: var(--p); color: white; border: none; width: 100%; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: auto; }
+        .btn-main:hover { background: var(--p-dark); transform: translateY(-2px); }
+
+        /* Main */
+        .main { flex: 1; padding: 30px; overflow-y: auto; position: relative; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; }
+        .shorts-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+        
+        .card { background: var(--card); border-radius: 18px; overflow: hidden; cursor: pointer; transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .thumb-container { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; }
+        .card.short .thumb-container { aspect-ratio: 9/16; }
+        video.preview { width: 100%; height: 100%; object-fit: cover; }
+        .info { padding: 15px; }
+        .v-title { font-weight: bold; font-size: 15px; margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .v-meta { color: var(--text-gray); font-size: 13px; }
+
+        /* Modal */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal-box { background: var(--card); padding: 30px; border-radius: 24px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 15px; }
+        input, select { background: #2a2a35; border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 10px; color: white; width: 100%; }
+
+        /* Player Overlay */
+        #player-overlay { position: fixed; inset: 0; background: #000; z-index: 3000; display: none; flex-direction: column; }
+        .close-player { position: absolute; top: 20px; right: 20px; color: white; font-size: 30px; cursor: pointer; z-index: 3101; }
+        video#main-player { width: 100%; height: 100%; }
+
+        /* Auth */
+        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 4000; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="modal-box" style="text-align: center;">
+            <h1 style="color:var(--p); margin-bottom: 10px;">GrigorovLive</h1>
+            <p style="color:var(--text-gray); margin-bottom: 20px;">Войди через GrigorovChat</p>
+            <input type="email" id="log-email" placeholder="Твой Email">
+            <input type="password" id="log-pass" placeholder="Пароль">
+            <button class="btn-main" onclick="handleLogin()" style="margin-top: 10px;">ВОЙТИ</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="logo" onclick="location.reload()">🟣 GrigorovLive</div>
+        <button class="nav-btn active" onclick="showTab('long', this)">🏠 Главная</button>
+        <button class="nav-btn" onclick="showTab('short', this)">📱 Shorts</button>
+        <button class="nav-btn">🔥 Тренды</button>
+        <button class="btn-main" onclick="toggleModal(true)">➕ ЗАГРУЗИТЬ</button>
+    </div>
+
+    <div class="main">
+        <header>
+            <h2 id="tab-title">Рекомендации</h2>
+            <div id="user-display" style="color: var(--text-gray); font-size: 14px;"></div>
+        </header>
+
+        <div id="video-grid" class="grid">
+            </div>
+    </div>
+
+    <div class="modal" id="upload-modal">
+        <div class="modal-box">
+            <h3 style="color: var(--p)">Загрузка видео</h3>
+            <input type="text" id="v-title" placeholder="Название видео">
+            <select id="v-type">
+                <option value="long">Обычное видео (Горизонтальное)</option>
+                <option value="short">Shorts (Вертикальное)</option>
+            </select>
+            <input type="file" id="v-file" accept="video/mp4,video/mov">
+            <button class="btn-main" id="upload-btn" onclick="startUpload()">ОПУБЛИКОВАТЬ</button>
+            <button style="background:none; border:none; color:var(--text-gray); cursor:pointer;" onclick="toggleModal(false)">Отмена</button>
+        </div>
+    </div>
+
+    <div id="player-overlay">
+        <span class="close-player" onclick="closePlayer()">×</span>
+        <video id="main-player" controls autoplay></video>
+    </div>
+
+<script>
+    // --- КОНФИГУРАЦИЯ ---
+    const client = new Appwrite.Client()
+        .setEndpoint('https://cloud.appwrite.io/v1')
+        .setProject('695824a900049124f435'); // Твой Project ID
+
+    const acc = new Appwrite.Account(client);
+    const db = new Appwrite.Databases(client);
+    const storage = new Appwrite.Storage(client);
+
+    const DB_ID = '695825270032517f8888'; // Твоя база ChatDB
+    const COL_VIDEOS = 'videos';           // Твоя новая коллекция
+    const BUCKET_ID = 'chat_photos';       // Твой бакет
+
+    let me = null;
+    let currentTab = 'long';
+
+    // --- ЛОГИКА АВТОРИЗАЦИИ ---
+    async function init() {
+        try {
+            me = await acc.get();
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('user-display').innerText = `Привет, ${me.name}!`;
+            loadVideos();
+        } catch {
+            document.getElementById('login-screen').style.display = 'flex';
+        }
+    }
+
+    async function handleLogin() {
+        const email = document.getElementById('log-email').value;
+        const pass = document.getElementById('log-pass').value;
+        try {
+            await acc.createEmailSession(email, pass);
+            location.reload();
+        } catch (e) { alert("Ошибка входа! Проверь данные от GrigorovChat."); }
+    }
+
+    // --- ЛОГИКА ЗАГРУЗКИ ---
+    function toggleModal(val) { document.getElementById('upload-modal').style.display = val ? 'flex' : 'none'; }
+
+    async function startUpload() {
+        const file = document.getElementById('v-file').files[0];
+        const title = document.getElementById('v-title').value;
+        const type = document.getElementById('v-type').value;
+        const btn = document.getElementById('upload-btn');
+
+        if (!file || !title) return alert("Выбери файл и напиши название!");
+        
+        btn.innerText = "ЗАГРУЗКА...";
+        btn.disabled = true;
+
+        try {
+            // 1. Загружаем файл в Storage
+            const f = await storage.createFile(BUCKET_ID, 'unique()', file);
+            
+            // 2. Создаем запись в базе
+            await db.createDocument(DB_ID, COL_VIDEOS, 'unique()', {
+                title: title,
+                video_id: f.$id,
+                type: type,
+                author: me.name
+            });
+
+            alert("Ура! Видео опубликовано на GrigorovLive!");
+            location.reload();
+        } catch (e) {
+            alert("Ошибка! Возможно файл слишком большой. Проверь лимиты Storage.");
+            btn.innerText = "ОПУБЛИКОВАТЬ";
+            btn.disabled = false;
+        }
+    }
+
+    // --- ОТОБРАЖЕНИЕ ВИДЕО ---
+    async function loadVideos() {
+        const grid = document.getElementById('video-grid');
+        grid.innerHTML = '<p style="color:gray">Загрузка контента...</p>';
+
+        try {
+            const res = await db.listDocuments(DB_ID, COL_VIDEOS);
+            grid.innerHTML = '';
+            
+            const filtered = res.documents.filter(v => v.type === currentTab);
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<p style="color:gray; grid-column: 1/-1; text-align:center; margin-top:50px;">Здесь пока пусто. Стань первым автором!</p>';
+                return;
+            }
+
+            filtered.forEach(v => {
+                const videoUrl = storage.getFileView(BUCKET_ID, v.video_id);
+                const card = document.createElement('div');
+                card.className = `card ${v.type === 'short' ? 'short' : ''}`;
+                card.innerHTML = `
+                    <div class="thumb-container">
+                        <video class="preview" src="${videoUrl}#t=0.5"></video>
+                    </div>
+                    <div class="info">
+                        <div class="v-title">${v.title}</div>
+                        <div class="v-meta">${v.author} • GrigorovLive</div>
+                    </div>
+                `;
+                card.onclick = () => openPlayer(videoUrl);
+                grid.appendChild(card);
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    function showTab(type, btn) {
+        currentTab = type;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-title').innerText = type === 'long' ? 'Рекомендации' : 'Shorts';
+        const grid = document.getElementById('video-grid');
+        grid.className = type === 'long' ? 'grid' : 'grid shorts-grid';
+        loadVideos();
+    }
+
+    // --- ПЛЕЕР ---
+    function openPlayer(url) {
+        const overlay = document.getElementById('player-overlay');
+        const player = document.getElementById('main-player');
+        player.src = url;
+        overlay.style.display = 'flex';
+        player.play();
+    }
+
+    function closePlayer() {
+        const overlay = document.getElementById('player-overlay');
+        const player = document.getElementById('main-player');
+        player.pause();
+        player.src = "";
+        overlay.style.display = 'none';
+    }
+
+    init();
+</script>
+</body>
+</html>
+
